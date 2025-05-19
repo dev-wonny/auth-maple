@@ -17,34 +17,36 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    return this.userModel.find().exec();
+    return this.userModel.find().lean().exec();
   }
 
   async findOne(id: string): Promise<User | null> {
-    return this.userModel.findOne({ userId: id }).exec();
+    return this.userModel.findOne({ userId: id }).lean().exec();
   }
 
   async findByUserId(userId: string): Promise<User | null> {
-    return this.userModel.findOne({ userId }).exec();
+    return this.userModel.findOne({ userId }).lean().exec();
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email }).exec();
+    return this.userModel.findOne({ email }).lean().exec();
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
     return this.userModel
       .findOneAndUpdate({ userId: id }, updateUserDto, { new: true })
+      .lean()
       .exec();
   }
 
   async incrementLoginCount(userId: string): Promise<User | null> {
     return this.userModel
       .findOneAndUpdate({ userId }, { $inc: { loginCount: 1 } }, { new: true })
+      .lean()
       .exec();
   }
 
   async remove(id: string): Promise<User | null> {
-    return this.userModel.findOneAndDelete({ userId: id }).exec();
+    return this.userModel.findOneAndDelete({ userId: id }).lean().exec();
   }
 }

@@ -1,8 +1,21 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { User } from '../users/schemas/user.schema';
+import { UserResponseDto } from './dto/user-response.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
+
+/**
+ * 사용자 데이터에서 비밀번호를 제외한 응답 DTO로 변환하는 헬퍼 함수
+ */
+function mapToUserResponse(user: User): UserResponseDto {
+  // 비밀번호 필드 제외
+  const { password, ...userResponse } = user as any;
+  return userResponse as UserResponseDto;
+}
 
 @Injectable()
 export class AuthService {
@@ -11,16 +24,14 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(userId: string, password: string): Promise<any> {
+  async validateUser(userId: string, password: string): Promise<User> {
     const user = await this.usersService.findByUserId(userId);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // 실제 환경에서는 비밀번호를 해싱해야 합니다
-    // const isPasswordValid = await bcrypt.compare(password, user.password);
-    // 현재는 해싱 없이 비교합니다 (개발 환경용)
-    const isPasswordValid = password === user.password;
+    // bcrypt를 사용하여 비밀번호 검증
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
@@ -29,7 +40,7 @@ export class AuthService {
     return user;
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.validateUser(loginDto.userId, loginDto.password);
 
     // 로그인 카운트 증가
@@ -41,36 +52,36 @@ export class AuthService {
       role: user.role,
     };
 
+    // 헬퍼 함수를 사용하여 UserResponseDto로 변환
+    const userResponse = mapToUserResponse(user);
+
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        userId: user.userId,
-        email: user.email,
-        nickName: user.nickName,
-        role: user.role,
-      },
+      user: userResponse,
     };
   }
 
-  async signup(createUserDto: CreateUserDto) {
-    // 비밀번호 해싱 (실제 환경에서 사용)
-    // const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    // const newUser = { ...createUserDto, password: hashedPassword };
+  async signup(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    // bcrypt를 사용하여 비밀번호 해싱
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const newUser = {
+      ...createUserDto,
+      password: hashedPassword,
+    };
 
-    // 현재는 해싱 없이 저장 (개발 환경용)
-    const newUser = createUserDto;
+    const createdUser = await this.usersService.create(newUser);
 
-    return this.usersService.create(newUser);
+    // 헬퍼 함수를 사용하여 UserResponseDto로 변환
+    return mapToUserResponse(createdUser);
   }
 
-  async getProfile(userId: string) {
+  async getProfile(userId: string): Promise<UserResponseDto> {
     const user = await this.usersService.findByUserId(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    // 비밀번호 제외하고 반환
-    const { password, ...result } = user.toObject();
-    return result;
+    // 헬퍼 함수를 사용하여 UserResponseDto로 변환
+    return mapToUserResponse(user);
   }
 }
