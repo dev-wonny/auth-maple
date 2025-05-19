@@ -40,11 +40,7 @@ export class UsersService {
 
   async incrementLoginCount(userId: string): Promise<User | null> {
     return this.userModel
-      .findOneAndUpdate(
-        { userId },
-        { $inc: { loginCount: 1 } },
-        { new: true }
-      )
+      .findOneAndUpdate({ userId }, { $inc: { loginCount: 1 } }, { new: true })
       .exec();
   }
 
