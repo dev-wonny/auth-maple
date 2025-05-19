@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserResponseDto } from './user-response.dto';
 
 export class LoginResponseDto {
   @ApiProperty({
@@ -7,10 +6,4 @@ export class LoginResponseDto {
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
   access_token: string;
-
-  @ApiProperty({
-    description: '사용자 정보',
-    type: UserResponseDto,
-  })
-  user: UserResponseDto;
 }

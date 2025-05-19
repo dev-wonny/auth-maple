@@ -7,13 +7,23 @@ import { ConfigService } from '@nestjs/config';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
     super({
+      // HTTP 요청의 Authorization 헤더에서 Bearer 토큰을 추출
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // 만료된 토큰은 거부
       ignoreExpiration: false,
+      // 토큰 검증에 사용할 비밀 키
       secretOrKey: configService.get<string>('JWT_SECRET') || 'secretKey',
     });
   }
 
+  // 토큰이 유효하면 이 메서드가 호출됨
   async validate(payload: any) {
-    return { userId: payload.sub, email: payload.email, role: payload.role };
+    // 페이로드에서 필요한 정보를 추출하여 반환
+    return { 
+      userId: payload.sub, 
+      email: payload.email, 
+      role: payload.role,
+      nickname: payload.nickname 
+    };
   }
 }

@@ -16,7 +16,17 @@ async function bootstrap() {
     .setDescription('인증 서비스 API 문서')
     .setVersion('1.0')
     .addTag('auth')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'JWT 토큰을 입력하세요',
+        in: 'header',
+      },
+      'JWT',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);

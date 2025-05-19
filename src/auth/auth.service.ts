@@ -32,6 +32,14 @@ interface UserDocument {
   [key: string]: any; // 기타 가능한 필드를 위한 인덱스 시그니처
 }
 
+// JWT 페이로드 인터페이스 정의
+interface JwtPayload {
+  sub: string; // userId
+  email: string;
+  role: string;
+  nickname: string;
+}
+
 /**
  * 사용자 데이터에서 비밀번호를 제외한 응답 DTO로 변환하는 헬퍼 함수
  */
@@ -39,6 +47,18 @@ function mapToUserResponse(user: UserDocument): UserResponseDto {
   // 비밀번호 필드 제외
   const { password, ...userResponse } = user;
   return userResponse as UserResponseDto;
+}
+
+/**
+ * 사용자 데이터에서 JWT 토큰 페이로드를 생성하는 헬퍼 함수
+ */
+function createJwtPayload(user: User): JwtPayload {
+  return {
+    sub: user.userId,
+    email: user.email,
+    role: user.role,
+    nickname: user.nickName,
+  };
 }
 
 @Injectable()
@@ -51,14 +71,14 @@ export class AuthService {
   async validateUser(userId: string, password: string): Promise<User> {
     const user = await this.usersService.findByUserId(userId);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('사용자 ID를 찾을 수 없습니다');
     }
 
     // bcrypt를 사용하여 비밀번호 검증
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('비밀번호가 일치하지 않습니다');
     }
 
     return user;
@@ -70,18 +90,14 @@ export class AuthService {
     // 로그인 카운트 증가
     await this.usersService.incrementLoginCount(user.userId);
 
-    const payload = {
-      sub: user.userId,
-      email: user.email,
-      role: user.role,
-    };
+    // JWT 페이로드 생성
+    const payload = createJwtPayload(user);
 
     // 헬퍼 함수를 사용하여 UserResponseDto로 변환
-    const userResponse = mapToUserResponse(user as unknown as UserDocument);
+    // const userResponse = mapToUserResponse(user as unknown as UserDocument);
 
     return {
       access_token: this.jwtService.sign(payload),
-      user: userResponse,
     };
   }
 
@@ -119,22 +135,12 @@ export class AuthService {
 
       const createdUser = await this.usersService.create(newUser);
 
-      // JWT 토큰 생성을 위한 페이로드
-      const payload = {
-        sub: createdUser.userId,
-        email: createdUser.email,
-        role: createdUser.role,
-      };
-
-      // 헬퍼 함수를 사용하여 UserResponseDto로 변환
-      const userResponse = mapToUserResponse(
-        createdUser as unknown as UserDocument,
-      );
+      // JWT 페이로드 생성
+      const payload = createJwtPayload(createdUser);
 
       // 로그인과 동일한 형식의 응답 반환
       return {
         access_token: this.jwtService.sign(payload),
-        user: userResponse,
       };
     } catch (error) {
       // MongoDB 중복 키 오류 처리 (E11000)

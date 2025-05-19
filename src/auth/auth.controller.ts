@@ -55,18 +55,21 @@ export class AuthController {
 
   @ApiOperation({
     summary: '내 정보 조회',
-    description: 'JWT 기반 사용자 정보 조회',
+    description: 'JWT 기반 사용자 정보 조회 (인증 필요)',
   })
   @ApiResponse({
     status: 200,
     description: '사용자 정보 조회 성공',
     type: UserResponseDto,
   })
-  @ApiResponse({ status: 401, description: '인증 실패' })
-  @ApiBearerAuth()
+  @ApiResponse({ status: 401, description: '인증 실패 - 유효한 JWT 토큰 필요' })
+  @ApiBearerAuth('JWT')
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getProfile(@Request() req): Promise<UserResponseDto> {
+    // req.user에는 validate 메서드에서 반환한 객체가 들어 있습니다
+    // 이제 req.user.nickname에 접근할 수 있습니다
+    console.log(`사용자 닉네임: ${req.user.nickname}`);
     return this.authService.getProfile(req.user.userId);
   }
 }
