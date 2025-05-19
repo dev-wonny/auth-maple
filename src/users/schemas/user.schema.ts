@@ -1,7 +1,6 @@
-// auth/src/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { Role } from '@libs/common/enums/role.enum';
+import { Role } from '../../../../libs/common/enums/role.enum'; // ← 경로 정확하게
 
 @Schema({ timestamps: true })
 export class User extends Document {
@@ -17,17 +16,22 @@ export class User extends Document {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ enum: Role, default: Role.USER })
+  // 🔥 여기 명확하게 `type: String`, `enum` 명시
+  @Prop({
+    type: String,
+    enum: Object.values(Role),
+    default: Role.USER,
+  })
   role: Role;
 
   @Prop({ default: false })
   isBlocked: boolean;
 
+  @Prop({ type: Date })
+  lastLoginAt: Date;
+
   @Prop({ default: 0 })
   loginCount: number;
-
-  @Prop()
-  lastLoginAt: Date;
 
   @Prop()
   invitedBy?: string;
