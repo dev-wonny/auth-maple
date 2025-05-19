@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
@@ -8,12 +13,31 @@ import { User } from '../users/schemas/user.schema';
 import { UserResponseDto } from './dto/user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 
+// User 데이터를 위한 인터페이스 정의
+interface UserDocument {
+  _id: any;
+  userId: string;
+  email: string;
+  nickName: string;
+  password: string;
+  role: string;
+  isBlocked: boolean;
+  lastLoginAt?: Date;
+  loginCount: number;
+  invitedBy?: string;
+  loginDays: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+
+  [key: string]: any; // 기타 가능한 필드를 위한 인덱스 시그니처
+}
+
 /**
  * 사용자 데이터에서 비밀번호를 제외한 응답 DTO로 변환하는 헬퍼 함수
  */
-function mapToUserResponse(user: User): UserResponseDto {
+function mapToUserResponse(user: UserDocument): UserResponseDto {
   // 비밀번호 필드 제외
-  const { password, ...userResponse } = user as any;
+  const { password, ...userResponse } = user;
   return userResponse as UserResponseDto;
 }
 
@@ -53,7 +77,7 @@ export class AuthService {
     };
 
     // 헬퍼 함수를 사용하여 UserResponseDto로 변환
-    const userResponse = mapToUserResponse(user);
+    const userResponse = mapToUserResponse(user as unknown as UserDocument);
 
     return {
       access_token: this.jwtService.sign(payload),
@@ -61,18 +85,66 @@ export class AuthService {
     };
   }
 
-  async signup(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    // bcrypt를 사용하여 비밀번호 해싱
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    const newUser = {
-      ...createUserDto,
-      password: hashedPassword,
-    };
+  async signup(createUserDto: CreateUserDto): Promise<LoginResponseDto> {
+    try {
+      // 이미 존재하는 사용자 ID인지 확인
+      const existingUserById = await this.usersService.findByUserId(
+        createUserDto.userId,
+      );
+      if (existingUserById) {
+        throw new ConflictException('User ID already exists');
+      }
 
-    const createdUser = await this.usersService.create(newUser);
+      // 이미 존재하는 이메일인지 확인
+      const existingUserByEmail = await this.usersService.findByEmail(
+        createUserDto.email,
+      );
+      if (existingUserByEmail) {
+        throw new ConflictException('Email already exists');
+      }
 
-    // 헬퍼 함수를 사용하여 UserResponseDto로 변환
-    return mapToUserResponse(createdUser);
+      // 비밀번호 유효성 검사 (예: 최소 길이, 복잡성 등)
+      if (createUserDto.password.length < 8) {
+        throw new BadRequestException(
+          'Password must be at least 8 characters long',
+        );
+      }
+
+      // bcrypt를 사용하여 비밀번호 해싱
+      const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+      const newUser = {
+        ...createUserDto,
+        password: hashedPassword,
+      };
+
+      const createdUser = await this.usersService.create(newUser);
+
+      // JWT 토큰 생성을 위한 페이로드
+      const payload = {
+        sub: createdUser.userId,
+        email: createdUser.email,
+        role: createdUser.role,
+      };
+
+      // 헬퍼 함수를 사용하여 UserResponseDto로 변환
+      const userResponse = mapToUserResponse(
+        createdUser as unknown as UserDocument,
+      );
+
+      // 로그인과 동일한 형식의 응답 반환
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: userResponse,
+      };
+    } catch (error) {
+      // MongoDB 중복 키 오류 처리 (E11000)
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        throw new ConflictException(`${field} already exists`);
+      }
+      // 그 외 오류는 그대로 전달
+      throw error;
+    }
   }
 
   async getProfile(userId: string): Promise<UserResponseDto> {
@@ -82,6 +154,6 @@ export class AuthService {
     }
 
     // 헬퍼 함수를 사용하여 UserResponseDto로 변환
-    return mapToUserResponse(user);
+    return mapToUserResponse(user as unknown as UserDocument);
   }
 }

@@ -43,11 +43,13 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: '회원가입 성공',
-    type: UserResponseDto,
+    type: LoginResponseDto,
   })
   @ApiResponse({ status: 400, description: '잘못된 요청' })
   @Post('signup')
-  async signup(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+  async signup(
+    @Body() createUserDto: CreateUserDto,
+  ): Promise<LoginResponseDto> {
     return this.authService.signup(createUserDto);
   }
 
