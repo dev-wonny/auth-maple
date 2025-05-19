@@ -24,6 +24,10 @@ export class UsersService {
     return this.userModel.findOne({ userId: id }).exec();
   }
 
+  async findByUserId(userId: string): Promise<User | null> {
+    return this.userModel.findOne({ userId }).exec();
+  }
+
   async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
   }
@@ -31,6 +35,16 @@ export class UsersService {
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
     return this.userModel
       .findOneAndUpdate({ userId: id }, updateUserDto, { new: true })
+      .exec();
+  }
+
+  async incrementLoginCount(userId: string): Promise<User | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { loginCount: 1 } },
+        { new: true }
+      )
       .exec();
   }
 
